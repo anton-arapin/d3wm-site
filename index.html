@@ -103,7 +103,6 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offs
 .masthead .authors,.masthead .affils,.masthead .links{justify-content:center}
 .eyebrow,section > .wrap > .col > h2{text-align:center}
 h1{
-  margin-inline:auto;
   font-family:var(--f-display);
   font-optical-sizing:auto;
   font-weight:500;
@@ -111,7 +110,9 @@ h1{
   line-height:1.12;
   letter-spacing:-.018em;
   text-wrap:balance;
-  margin:0 0 1.6rem;
+  margin:0 auto 1.6rem;   /* auto sides: the shorthand must set them, or it
+                             overrides an earlier margin-inline and the box
+                             pins to the left of the wrap */
   max-width:25ch;
 }
 .authors{
@@ -526,8 +527,7 @@ window.MathJax = {
     </p>
 
     <nav class="links">
-      <!-- Paper: replace href="#" with the PDF path, e.g. "assets/d3wm.pdf" -->
-      <a class="btn" href="#">
+      <a class="btn" href="assets/D3WM_arxiv.pdf" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
         Paper
       </a>
