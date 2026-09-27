@@ -92,14 +92,18 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offs
   padding-inline:20px;
   padding-block:0;
 }
-.col{max-width:var(--measure);margin-inline:0}
+.col{max-width:var(--measure);margin-inline:auto}
 
 /* ---------------------------------------------------------------- masthead */
 .masthead{
   padding-block:clamp(3rem,7vw,5.5rem) clamp(2rem,4vw,3rem);
   border-bottom:1px solid var(--rule);
 }
+.masthead .wrap{text-align:center}
+.masthead .authors,.masthead .affils,.masthead .links{justify-content:center}
+.eyebrow,section > .wrap > .col > h2{text-align:center}
 h1{
+  margin-inline:auto;
   font-family:var(--f-display);
   font-optical-sizing:auto;
   font-weight:500;
@@ -200,6 +204,8 @@ h3{
 }
 p{margin:0 0 1.1rem;color:var(--ink-soft)}
 p.lead{
+  margin-inline:auto;
+  text-align:center;
   font-family:var(--f-display);
   font-size:clamp(1.1rem,2.1vw,1.32rem);
   line-height:1.5;
@@ -214,7 +220,7 @@ em.run{font-style:normal;font-weight:600;color:var(--ink)}
 
 /* ---------------------------------------------------------------- figures */
 figure{margin:0 0 1.5rem}
-.figw{max-width:var(--wide)}
+.figw{max-width:var(--wide);margin-inline:auto}
 .col + .figw,.figw + .col,.col + .tables,.tables + .col{margin-top:2rem}
 figcaption{
   margin-top:.7rem;
@@ -313,6 +319,63 @@ tbody th{
 tr.ours td,tr.ours th{background:var(--surface)}
 tr.ref td,tr.ref th{color:var(--muted);font-style:italic}
 
+/* ------------------------------------------------- image slots / fallback */
+/* The <img> is live. If the file is not there yet, script.js marks the slot
+   `missing` and the dashed placeholder takes over, so assets can be dropped in
+   one at a time without touching the HTML. */
+.slot{position:relative}
+.slot > img{display:block;width:100%;height:auto;border-radius:3px}
+.slot > .ph{display:none}
+.slot.missing > img{display:none}
+.slot.missing > .ph{display:grid}
+
+/* ---------------------------------------------------------------- top nav */
+.topbar{
+  position:sticky;
+  top:env(safe-area-inset-top, 0px);
+  z-index:50;
+  background:var(--paper);
+  border-bottom:1px solid var(--rule);
+}
+.topbar .inner{
+  max-width:var(--wide);
+  margin-inline:auto;
+  padding-inline:20px;
+  padding-block:.45rem;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:.15rem;
+}
+.topbar a{
+  font-family:var(--f-mono);
+  font-size:.73rem;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--muted);
+  text-decoration:none;
+  padding:.35rem .72rem;
+  border-radius:999px;
+  transition:color .15s ease,background .15s ease;
+}
+.topbar a:hover{color:var(--ink);background:var(--surface)}
+.topbar a[aria-current="true"]{color:var(--ink);background:var(--surface-2)}
+[id]{scroll-margin-top:4.2rem}
+@media (prefers-reduced-motion: no-preference){
+  html{scroll-behavior:smooth}
+}
+
+/* ---------------------------------------------------------------- gif grid */
+.gifgrid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:.75rem;
+  max-width:42rem;
+  margin-inline:auto;
+}
+.gifgrid .ph{max-height:none}
+.gifgrid + figcaption{max-width:42rem;margin-inline:auto}
+
 /* ---------------------------------------------------- headline wins */
 ul.wins{
   list-style:none;
@@ -339,9 +402,10 @@ ul.wins li::before{                 /* hanging rule; keeps the text in inline fl
 /* ---------------------------------------------------- collapsed tables */
 .drops{
   max-width:var(--wide);
+  margin-inline:auto;
   display:grid;
   gap:.5rem;
-  margin:1.9rem 0 2rem;
+  margin-block:1.9rem 2rem;
 }
 details.drop{
   min-width:0;
@@ -434,7 +498,17 @@ window.MathJax = {
 
 <body>
 
-<header class="masthead">
+<nav class="topbar" aria-label="Sections">
+  <div class="inner">
+    <a href="#top">Top</a>
+    <a href="#method">Method</a>
+    <a href="#pusht">PushT</a>
+    <a href="#bridge">Bridge</a>
+    <a href="#nvs">NVS</a>
+  </div>
+</nav>
+
+<header class="masthead" id="top">
   <div class="wrap">
     <h1>Decoupled Drift-Diffusion World Models for Consistent Future Frame Prediction</h1>
 
@@ -478,10 +552,12 @@ window.MathJax = {
       <p class="lead">A world model should reproduce what the actions determine, and invent only what they don't. D3WM learns where that boundary is.</p>
 
       <figure>
-        <!-- <img src="assets/teaser.png" alt="D3WM teaser figure"> -->
-        <div class="ph" data-ratio="wide">
-          <span class="file">assets/teaser.png</span>
-          <span class="what">Teaser — the drift/diffusion split beside deterministic-only and diffusion-only baselines.</span>
+        <div class="slot">
+          <img src="assets/teaser.png" alt="D3WM teaser figure">
+            <div class="ph" data-ratio="wide">
+            <span class="file">assets/teaser.png</span>
+            <span class="what">Teaser — the drift/diffusion split beside deterministic-only and diffusion-only baselines.</span>
+            </div>
         </div>
       </figure>
     </div>
@@ -495,7 +571,7 @@ window.MathJax = {
     </div></div>
   </section>
 
-  <section>
+  <section id="method">
     <div class="wrap"><div class="col">
       <p class="eyebrow">Method</p>
       <h2>A variance-gated SDE over the observation axis</h2>
@@ -530,17 +606,19 @@ window.MathJax = {
     </div>
 
       <figure class="figw">
-        <!-- <img src="assets/architecture.png" alt="D3WM architecture"> -->
-        <div class="ph" data-ratio="fig">
-          <span class="file">assets/architecture.png</span>
-          <span class="what">Architecture — the drift network <i>f</i><sub>θ</sub> runs once; the diffusion loop runs the variance-gated refinement of Eq. 6.</span>
+        <div class="slot">
+          <img src="assets/architecture.png" alt="D3WM architecture">
+            <div class="ph" data-ratio="fig">
+            <span class="file">assets/architecture.png</span>
+            <span class="what">Architecture — the drift network <i>f</i><sub>θ</sub> runs once; the diffusion loop runs the variance-gated refinement of Eq. 6.</span>
+            </div>
         </div>
         <figcaption>The deterministic prediction network runs a single forward pass per query. Only the diffusion network iterates.</figcaption>
       </figure>
     </div>
   </section>
 
-  <section>
+  <section id="pusht">
     <div class="wrap"><div class="col">
       <p class="eyebrow">Results — Real PushT</p>
       <h2>Predicted frames good enough to plan on</h2>
@@ -569,25 +647,46 @@ window.MathJax = {
       </div>
 
       <figure class="figw">
-        <!-- <img src="assets/pusht_qualitative.png" alt="Qualitative Real PushT comparison"> -->
-        <div class="ph" data-ratio="grid">
-          <span class="file">assets/pusht_qualitative.png</span>
-          <span class="what">Qualitative PushT — input frame, iVideoGPT, D3WM, ground truth at t = 16.</span>
+        <div class="gifgrid">
+          <div class="gif">
+            <div class="slot">
+              <img src="assets/pusht_1.gif" alt="Real PushT rollout 1">
+                <div class="ph" data-ratio="square">
+                <span class="file">assets/pusht_1.gif</span>
+                </div>
+            </div>
+          </div>
+          <div class="gif">
+            <div class="slot">
+              <img src="assets/pusht_2.gif" alt="Real PushT rollout 2">
+                <div class="ph" data-ratio="square">
+                <span class="file">assets/pusht_2.gif</span>
+                </div>
+            </div>
+          </div>
+          <div class="gif">
+            <div class="slot">
+              <img src="assets/pusht_3.gif" alt="Real PushT rollout 3">
+                <div class="ph" data-ratio="square">
+                <span class="file">assets/pusht_3.gif</span>
+                </div>
+            </div>
+          </div>
+          <div class="gif">
+            <div class="slot">
+              <img src="assets/pusht_4.gif" alt="Real PushT rollout 4">
+                <div class="ph" data-ratio="square">
+                <span class="file">assets/pusht_4.gif</span>
+                </div>
+            </div>
+          </div>
         </div>
-      </figure>
-
-      <figure class="figw">
-        <!-- <img src="assets/pusht.gif" alt="Rollout on Real PushT" style="max-width:26rem"> -->
-        <div class="ph" data-ratio="square" style="max-width:26rem">
-          <span class="file">assets/pusht.gif</span>
-          <span class="what">Rollout — predicted frames beside the executed trajectory.</span>
-        </div>
-        <figcaption>Drop in an animated GIF, or swap the block for a <code>&lt;video autoplay loop muted playsinline&gt;</code> element.</figcaption>
+        <figcaption>Predicted rollouts on Real PushT. Drop in four animated GIFs, or swap each block for a <code>&lt;video autoplay loop muted playsinline&gt;</code> element.</figcaption>
       </figure>
     </div>
   </section>
 
-  <section>
+  <section id="bridge">
     <div class="wrap"><div class="col">
       <p class="eyebrow">Results — BridgeData V2</p>
       <h2>Predict, rank, and act</h2>
@@ -658,16 +757,18 @@ window.MathJax = {
       </div>
 
       <figure class="figw">
-        <!-- <img src="assets/bridge_qualitative.png" alt="Qualitative BridgeData V2 comparison"> -->
-        <div class="ph" data-ratio="grid">
-          <span class="file">assets/bridge_qualitative.png</span>
-          <span class="what">Qualitative BridgeData V2 — the hedged <i>μ</i><sub>t</sub> beside the sharp full-model sample, against IRASim and WorldGym.</span>
+        <div class="slot">
+          <img src="assets/bridge_qualitative.png" alt="Qualitative BridgeData V2 comparison">
+            <div class="ph" data-ratio="grid">
+            <span class="file">assets/bridge_qualitative.png</span>
+            <span class="what">Qualitative BridgeData V2 — the hedged <i>μ</i><sub>t</sub> beside the sharp full-model sample, against IRASim and WorldGym.</span>
+            </div>
         </div>
       </figure>
     </div>
   </section>
 
-  <section>
+  <section id="nvs">
     <div class="wrap"><div class="col">
       <p class="eyebrow">Results — Novel view synthesis</p>
       <h2>Extrapolating 12 frames from two views</h2>
@@ -721,10 +822,12 @@ window.MathJax = {
       </div>
 
       <figure class="figw">
-        <!-- <img src="assets/nvs_qualitative.png" alt="Qualitative NVS comparison"> -->
-        <div class="ph" data-ratio="grid">
-          <span class="file">assets/nvs_qualitative.png</span>
-          <span class="what">Qualitative NVS — reference, deterministic <i>μ</i><sub>t</sub>, variance map, D3WM, DepthSplat, ground truth.</span>
+        <div class="slot">
+          <img src="assets/nvs_qualitative.png" alt="Qualitative NVS comparison">
+            <div class="ph" data-ratio="grid">
+            <span class="file">assets/nvs_qualitative.png</span>
+            <span class="what">Qualitative NVS — reference, deterministic <i>μ</i><sub>t</sub>, variance map, D3WM, DepthSplat, ground truth.</span>
+            </div>
         </div>
         <figcaption>The variance map column is the part to look at: it locates the disocclusions before anything is generated.</figcaption>
       </figure>
@@ -749,6 +852,55 @@ window.MathJax = {
     <p>Anton Arapin, Aditya Singh, Yixin Wang, Jun Gao, Bernadette Bucher &middot; University of Michigan and NVIDIA</p>
   </div></div>
 </footer>
+
+<script>
+/* Mark the section currently in view in the top nav. Plain scroll maths rather
+   than IntersectionObserver ratios, which are unreliable for sections that are
+   taller than the viewport. */
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.topbar a[href^="#"]'));
+  var items = [];
+  links.forEach(function (a) {
+    var el = document.getElementById(a.getAttribute('href').slice(1));
+    if (el) items.push({ a: a, el: el });
+  });
+  if (!items.length) return;
+
+  var ticking = false;
+  function mark() {
+    ticking = false;
+    var line = window.scrollY + 140;
+    var cur = items[0];
+    items.forEach(function (it) {
+      if (it.el.getBoundingClientRect().top + window.scrollY <= line) cur = it;
+    });
+    items.forEach(function (it) {
+      it.a.setAttribute('aria-current', it === cur ? 'true' : 'false');
+    });
+  }
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(mark); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  mark();
+})();
+</script>
+
+<script>
+/* Show the dashed placeholder for any asset that is not in place yet. */
+(function () {
+  function check(img) {
+    var slot = img.parentNode;
+    if (img.complete && img.naturalWidth === 0) slot.classList.add('missing');
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.slot > img'), function (img) {
+    img.addEventListener('error', function () { img.parentNode.classList.add('missing'); });
+    img.addEventListener('load', function () { img.parentNode.classList.remove('missing'); });
+    check(img);
+  });
+})();
+</script>
 
 </body>
 </html>
