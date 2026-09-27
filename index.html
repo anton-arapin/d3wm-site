@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Decoupled Drift-Diffusion World Models</title>
+<meta name="description" content="D3WM separates deterministic drift from stochastic diffusion in action-conditioned future frame prediction, using a learned spatial variance map as a gate.">
+
+<!-- Social preview: point this at assets/teaser.png once the figure exists, and set the URL. -->
+<meta property="og:title" content="Decoupled Drift-Diffusion World Models">
+<meta property="og:description" content="Action-conditioned future frame prediction that stays geometrically consistent, by gating generation with a learned uncertainty map.">
+<meta property="og:image" content="assets/teaser.png">
+<meta property="og:type" content="website">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --paper:#ffffff;
+  --surface:#f5f6f7;
+  --surface-2:#eceef1;
+  --ink:#16181d;
+  --ink-soft:#3d434d;
+  --muted:#6b727d;
+  --rule:#e1e5ea;
+  --rule-strong:#c9cfd7;
+  --drift:#a94a44;
+  --diffusion:#524ca1;
+  --focus:#2f6fd0;
+  --shadow:rgba(20,24,32,.07);
+
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --measure:44rem;
+  --wide:60rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0e1014;
+    --surface:#161a20;
+    --surface-2:#1d222a;
+    --ink:#e9ecf0;
+    --ink-soft:#c2c9d2;
+    --muted:#8f97a3;
+    --rule:#242a32;
+    --rule-strong:#39414c;
+    --drift:#e0908a;
+    --diffusion:#9b95e8;
+    --focus:#7ab0ff;
+    --shadow:rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0e1014;
+  --surface:#161a20;
+  --surface-2:#1d222a;
+  --ink:#e9ecf0;
+  --ink-soft:#c2c9d2;
+  --muted:#8f97a3;
+  --rule:#242a32;
+  --rule-strong:#39414c;
+  --drift:#e0908a;
+  --diffusion:#9b95e8;
+  --focus:#7ab0ff;
+  --shadow:rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:1rem;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:2px}
+
+.wrap{
+  max-width:var(--wide);
+  margin-inline:auto;
+  padding-inline:20px;
+  padding-block:0;
+}
+.col{max-width:var(--measure);margin-inline:0}
+
+/* ---------------------------------------------------------------- masthead */
+.masthead{
+  padding-block:clamp(3rem,7vw,5.5rem) clamp(2rem,4vw,3rem);
+  border-bottom:1px solid var(--rule);
+}
+h1{
+  font-family:var(--f-display);
+  font-optical-sizing:auto;
+  font-weight:500;
+  font-size:clamp(1.9rem,4.4vw,3.05rem);
+  line-height:1.12;
+  letter-spacing:-.018em;
+  text-wrap:balance;
+  margin:0 0 1.6rem;
+  max-width:25ch;
+}
+.authors{
+  list-style:none;
+  display:flex;
+  flex-wrap:wrap;
+  gap:.15rem 1.15rem;
+  margin:0 0 .5rem;
+  padding:0;
+  font-size:1.02rem;
+  font-weight:500;
+  color:var(--ink-soft);
+}
+.authors sup{font-size:.68em;font-weight:600;color:var(--muted);margin-left:.1em}
+.affils{
+  margin:0;
+  font-size:.9rem;
+  color:var(--muted);
+  display:flex;
+  flex-wrap:wrap;
+  gap:.2rem 1.4rem;
+}
+.affils sup{font-size:.78em;margin-right:.25em}
+
+.links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.6rem;
+  margin-top:2rem;
+}
+.btn{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.56rem 1.05rem;
+  border:1px solid var(--rule-strong);
+  border-radius:999px;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:.9rem;
+  font-weight:500;
+  text-decoration:none;
+  transition:background .15s ease,border-color .15s ease,transform .15s ease;
+}
+.btn:hover{background:var(--surface);border-color:var(--ink-soft)}
+.btn:active{transform:translateY(1px)}
+.btn svg{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.btn--soon{
+  color:var(--muted);
+  border-style:dashed;
+  cursor:default;
+  background:transparent;
+}
+.btn--soon:hover{background:transparent;border-color:var(--rule-strong)}
+.btn--soon .tag{
+  font-family:var(--f-mono);
+  font-size:.72rem;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+/* ---------------------------------------------------------------- sections */
+section{padding-block:clamp(2.6rem,5vw,4rem)}
+section + section{border-top:1px solid var(--rule)}
+.eyebrow{
+  font-family:var(--f-mono);
+  font-size:.74rem;
+  font-weight:500;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin:0 0 .85rem;
+}
+h2{
+  font-family:var(--f-display);
+  font-weight:500;
+  font-size:clamp(1.45rem,2.7vw,1.95rem);
+  line-height:1.2;
+  letter-spacing:-.012em;
+  text-wrap:balance;
+  margin:0 0 1.2rem;
+}
+h3{
+  font-family:var(--f-body);
+  font-weight:600;
+  font-size:1.02rem;
+  letter-spacing:-.005em;
+  margin:2.6rem 0 .85rem;
+}
+p{margin:0 0 1.1rem;color:var(--ink-soft)}
+p.lead{
+  font-family:var(--f-display);
+  font-size:clamp(1.1rem,2.1vw,1.32rem);
+  line-height:1.5;
+  color:var(--ink);
+  max-width:38ch;
+}
+strong{color:var(--ink);font-weight:600}
+em.run{font-style:normal;font-weight:600;color:var(--ink)}
+.drift{color:var(--drift);font-weight:600}
+.mu{font-family:var(--f-display);font-style:italic;font-weight:500}
+.diffusion{color:var(--diffusion);font-weight:600}
+
+/* ---------------------------------------------------------------- figures */
+figure{margin:0 0 1.5rem}
+.figw{max-width:var(--wide)}
+.col + .figw,.figw + .col,.col + .tables,.tables + .col{margin-top:2rem}
+figcaption{
+  margin-top:.7rem;
+  font-size:.85rem;
+  line-height:1.5;
+  color:var(--muted);
+  max-width:var(--measure);
+}
+.ph{
+  display:grid;
+  place-content:center;
+  gap:.45rem;
+  text-align:center;
+  padding:1.5rem;
+  background:var(--surface);
+  border:1px dashed var(--rule-strong);
+  border-radius:4px;
+  color:var(--muted);
+  max-height:22rem;   /* only bounds the empty placeholder; a real <img> sizes itself */
+}
+.ph[data-ratio="wide"]{aspect-ratio:16/7}
+.ph[data-ratio="fig"]{aspect-ratio:16/9}
+.ph[data-ratio="grid"]{aspect-ratio:4/3}
+.ph[data-ratio="square"]{aspect-ratio:1/1}
+.ph .file{
+  font-family:var(--f-mono);
+  font-size:.82rem;
+  color:var(--ink-soft);
+  word-break:break-all;
+}
+.ph .what{font-size:.82rem;max-width:34ch;margin-inline:auto;line-height:1.45}
+
+/* ---------------------------------------------------------------- math */
+.eq{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+  margin:1.4rem 0 1.5rem;
+  overflow-x:auto;
+  padding-block:.2rem;
+}
+.eq > .body{flex:1;min-width:0;text-align:center}
+.eq > .n{
+  flex:none;
+  font-family:var(--f-mono);
+  font-size:.8rem;
+  color:var(--muted);
+}
+mjx-container{color:var(--ink)}
+mjx-container[display="true"]{margin:0 !important}
+
+/* ---------------------------------------------------------------- tables */
+.tables{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));
+  gap:1.6rem 2.2rem;
+  margin-bottom:1.4rem;
+}
+.tw{overflow-x:auto;min-width:0}
+table{
+  border-collapse:collapse;
+  width:100%;
+  font-size:.86rem;
+  font-variant-numeric:tabular-nums;
+}
+caption{
+  text-align:left;
+  font-size:.85rem;
+  color:var(--muted);
+  padding-bottom:.6rem;
+  line-height:1.45;
+}
+th,td{padding:.4rem .6rem;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+td:last-child,th:last-child{padding-right:0}
+thead th[colspan]{text-align:center}
+thead th{
+  font-family:var(--f-mono);
+  font-size:.72rem;
+  font-weight:500;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:var(--muted);
+  border-bottom:1px solid var(--rule-strong);
+}
+tbody td{border-bottom:1px solid var(--rule);color:var(--ink-soft)}
+tbody tr:last-child td{border-bottom:1px solid var(--rule-strong)}
+tbody td b{color:var(--ink);font-weight:600}
+tbody th{
+  font-weight:500;
+  color:var(--muted);
+  text-align:left;
+  padding-left:0;
+  border-bottom:1px solid var(--rule);
+}
+tr.ours td,tr.ours th{background:var(--surface)}
+tr.ref td,tr.ref th{color:var(--muted);font-style:italic}
+
+/* ---------------------------------------------------- headline wins */
+ul.wins{
+  list-style:none;
+  padding:0;
+  margin:0 0 .5rem;
+  display:grid;
+  gap:.7rem;
+}
+ul.wins li{
+  position:relative;
+  padding-left:1.7rem;
+  color:var(--ink-soft);
+}
+ul.wins li::before{                 /* hanging rule; keeps the text in inline flow */
+  content:"";
+  position:absolute;
+  left:0;
+  top:.78em;
+  width:1rem;
+  height:1px;
+  background:var(--rule-strong);
+}
+
+/* ---------------------------------------------------- collapsed tables */
+.drops{
+  max-width:var(--wide);
+  display:grid;
+  gap:.5rem;
+  margin:1.9rem 0 2rem;
+}
+details.drop{
+  min-width:0;
+  border:1px solid var(--rule);
+  border-radius:4px;
+  background:var(--paper);
+}
+details.drop[open]{background:var(--surface)}
+details.drop > summary{
+  display:flex;
+  align-items:center;
+  gap:.65rem;
+  padding:.6rem .85rem;
+  cursor:pointer;
+  font-family:var(--f-mono);
+  font-size:.78rem;
+  letter-spacing:.02em;
+  color:var(--ink);
+  list-style:none;
+  border-radius:3px;
+}
+details.drop > summary::-webkit-details-marker{display:none}
+details.drop > summary::before{
+  content:"";
+  flex:none;
+  width:.42rem;
+  height:.42rem;
+  border-right:1.5px solid var(--muted);
+  border-bottom:1.5px solid var(--muted);
+  transform:rotate(-45deg);
+  transition:transform .18s ease;
+}
+details.drop[open] > summary::before{transform:rotate(45deg)}
+details.drop > summary:hover{background:var(--surface)}
+details.drop[open] > summary:hover{background:var(--surface-2)}
+details.drop > summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+details.drop > summary .hint{
+  margin-left:auto;
+  color:var(--muted);
+  font-size:.72rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+details.drop > .tw{padding:.2rem .85rem 1rem;min-width:0}
+details.drop caption{padding-top:.5rem}
+
+/* ---------------------------------------------------------------- bibtex */
+.bib{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:4px;
+  padding:1.1rem 1.2rem;
+  overflow-x:auto;
+}
+.bib pre{
+  margin:0;
+  font-family:var(--f-mono);
+  font-size:.82rem;
+  line-height:1.65;
+  color:var(--ink-soft);
+  white-space:pre;
+}
+
+footer{
+  border-top:1px solid var(--rule);
+  padding-block:2rem 3rem;
+  font-size:.82rem;
+  color:var(--muted);
+}
+footer p{color:var(--muted);margin:0}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['\\[', '\\]']],
+    tags: 'none'
+  },
+  svg: { fontCache: 'global' },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+</head>
+
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <h1>Decoupled Drift-Diffusion World Models for Consistent Future Frame Prediction</h1>
+
+    <ol class="authors">
+      <li>Anton Arapin<sup>1</sup></li>
+      <li>Aditya Singh<sup>1</sup></li>
+      <li>Yixin Wang<sup>1</sup></li>
+      <li>Jun Gao<sup>2</sup></li>
+      <li>Bernadette Bucher<sup>1</sup></li>
+    </ol>
+
+    <p class="affils">
+      <span><sup>1</sup>University of Michigan</span>
+      <span><sup>2</sup>NVIDIA</span>
+    </p>
+
+    <nav class="links">
+      <!-- Paper: replace href="#" with the PDF path, e.g. "assets/d3wm.pdf" -->
+      <a class="btn" href="#">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+        Paper
+      </a>
+      <!-- arXiv: paste the abs URL here once the preprint is up -->
+      <a class="btn" href="#">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/></svg>
+        arXiv
+      </a>
+      <!-- Code: swap this span for <a class="btn" href="https://github.com/..."> when the repo is public -->
+      <span class="btn btn--soon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 16-4-4 4-4"/><path d="m16 8 4 4-4 4"/></svg>
+        Code <span class="tag">coming soon</span>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section>
+    <div class="wrap">
+      <p class="lead">A world model should reproduce what the actions determine, and invent only what they don't. D3WM learns where that boundary is.</p>
+
+      <figure>
+        <!-- <img src="assets/teaser.png" alt="D3WM teaser figure"> -->
+        <div class="ph" data-ratio="wide">
+          <span class="file">assets/teaser.png</span>
+          <span class="what">Teaser — the drift/diffusion split beside deterministic-only and diffusion-only baselines.</span>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap"><div class="col">
+      <p class="eyebrow">Abstract</p>
+      <p>World models of visual information predict future image frames conditioned on given action sequences. This predicted scene evolution is driven by deterministic changes such as controlled motion on a robot platform, as well as stochastic changes such as rendering of previously occluded regions. Our key insight is that the spatial location of these stochastic changes is itself learnable.</p>
+      <p>We leverage this insight by jointly regressing both the deterministic next-state prediction and the spatial uncertainty map, then using the uncertainty map to guide a conditional diffusion process. We propose the <strong>Decoupled Drift-Diffusion World Model (D3WM)</strong>, which uses a transformer trained with a Gaussian negative-log-likelihood objective to produce both the deterministic next-state prediction and a spatial map of heteroscedastic aleatoric uncertainty. The learned uncertainty map then provides a structured spatial gate for a conditional diffusion model: deterministic regions are anchored to the predicted state, while uncertain regions, such as disocclusions or dynamic textures, are sampled by the diffusion process. We frame this decomposition under a variance-gated stochastic differential equation that separates deterministic drift from stochastic diffusion. D3WM shows improved results over competitive baselines in two distinct types of action spaces: trajectory planning for robotic manipulation from generated images, and camera movement in long-horizon novel view synthesis.</p>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="wrap"><div class="col">
+      <p class="eyebrow">Method</p>
+      <h2>A variance-gated SDE over the observation axis</h2>
+
+      <p>We write the transition from a start latent \(z_0\) under an action sequence \(a_{[0,t]}\) as a stochastic differential equation over the <em class="run">observation</em> time axis, which names the two parts separately:</p>
+
+      <div class="eq"><div class="body">\[ \mathrm{d}z_t \;=\; \underbrace{f_\theta\!\left(t,\,z_0,\,a_{[0,t]}\right)}_{\text{drift}}\,\mathrm{d}t \;+\; \underbrace{\sigma_t \odot \mathrm{d}w_t}_{\text{diffusion}} \]</div><div class="n">(1)</div></div>
+
+      <h3><span class="drift">Drift</span> — regress the integrated effect, not the rate</h3>
+      <p>Rather than learning the instantaneous coefficient \(f_\theta\) and integrating it numerically, we regress its integrated effect over \([0,t]\) in a single forward pass. A deterministic transformer returns the conditional mean together with a spatial map of heteroscedastic aleatoric variance:</p>
+
+      <div class="eq"><div class="body">\[ \mu_t,\ \sigma_t^{2} \;=\; f_\theta^{\mu}\!\left(t,\,z_0,\,a_{[0,t]}\right) \]</div><div class="n">(2)</div></div>
+
+      <p>Training by Gaussian negative log-likelihood forces \(\sigma_t^{2}\) to be large exactly where the deterministic prediction is ambiguous — disocclusions, dynamic texture:</p>
+
+      <div class="eq"><div class="body">\[ \mathcal{L}_{\text{drift}} \;=\; \tfrac{1}{2}\sum_{i,j}\left( \log \sigma_t^{2\,(i,j)} \;+\; \frac{\bigl(z_t^{(i,j)} - \mu_t^{(i,j)}\bigr)^{2}}{\sigma_t^{2\,(i,j)}} \right) \]</div><div class="n">(3)</div></div>
+
+      <h3><span class="diffusion">Diffusion</span> — a learned sampler in place of the Wiener term</h3>
+      <p>Integrating Eq. 1 by Euler–Maruyama would draw the stochastic term from an isotropic Gaussian, which fills disoccluded regions with static rather than plausible texture. We replace that term with a conditional ControlNet \(g_\theta\), conditioned on \(\mu_t\), \(\sigma_t^{2}\) and the reference frame \(z_0\) — an image-manifold-aware sampler for the same next-state distribution:</p>
+
+      <div class="eq"><div class="body">\[ \mathcal{L}_{\text{score}} \;=\; \mathbb{E}_{\tau,\,z_t,\,\epsilon\sim\mathcal{N}(0,I)} \Bigl[\; \bigl\lVert \epsilon - g_\theta\bigl(z_t^{(\tau)},\,\tau,\,\mu_t,\,\sigma_t^{2},\,z_0\bigr) \bigr\rVert_2^{2} \;\Bigr] \]</div><div class="n">(4)</div></div>
+
+      <h3>Variance-gated inference</h3>
+      <p>At sampling time \(\sigma_t^{2}\) becomes a spatial gate rather than only a conditioning signal. With a diffusion-time anchoring schedule \(\lambda_\tau \in [0,1]\), define a per-pixel trust map, and at each reverse step \(\tau\) replace the diffusion model's latent with a weighted combination of it and a forward-noised version of the deterministic prediction:</p>
+
+      <div class="eq"><div class="body">\[ \gamma_t \;=\; \bigl(\mathbf{1}-\sigma_t^{2}\bigr)\odot\lambda_\tau \]</div><div class="n">(5)</div></div>
+
+      <div class="eq"><div class="body">\[ \tilde{z}_t^{(\tau)} \;=\; \gamma_t \odot \tilde{\mu}_t^{(\tau)} \;+\; \bigl(\mathbf{1}-\gamma_t\bigr)\odot z_t^{(\tau)}, \qquad \tilde{\mu}_t^{(\tau)} \;=\; \sqrt{\bar{\alpha}_\tau}\,\mu_t + \sqrt{1-\bar{\alpha}_\tau}\,\xi_\tau \]</div><div class="n">(6)</div></div>
+
+      <p>Both terms are valid noisy latents at noise level \(\tau\), so the substitution stays compatible with the next reverse step. Where \(\sigma_t^{2}\!\to\!0\) the conditional latent collapses toward \(\mu_t\) and geometric structure is preserved; where \(\sigma_t^{2}\!\to\!1\) the pixel is handed to the diffusion model and new content is synthesized. The model is <strong>deterministic where the actions decide the answer, and generative only where they do not</strong>.</p>
+
+    </div>
+
+      <figure class="figw">
+        <!-- <img src="assets/architecture.png" alt="D3WM architecture"> -->
+        <div class="ph" data-ratio="fig">
+          <span class="file">assets/architecture.png</span>
+          <span class="what">Architecture — the drift network <i>f</i><sub>θ</sub> runs once; the diffusion loop runs the variance-gated refinement of Eq. 6.</span>
+        </div>
+        <figcaption>The deterministic prediction network runs a single forward pass per query. Only the diffusion network iterates.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap"><div class="col">
+      <p class="eyebrow">Results — Real PushT</p>
+      <h2>Predicted frames good enough to plan on</h2>
+      <p>We predict 16 frames ahead from a fixed and a wrist camera, then hand the predicted frame to a pre-trained PushT Diffusion Policy and let it plan. The question is not how the image looks — it is whether a policy can act on it.</p>
+      <ul class="wins">
+        <li><b>3.5&times; lower</b> trajectory error than iVideoGPT: 12.86 ADE against 45.13.</li>
+        <li>Gripper and object land where the actions put them, instead of the hallucinated grippers and deformed T that iVideoGPT produces.</li>
+      </ul>
+    </div>
+
+      <div class="drops">
+        <details class="drop">
+          <summary>Trajectory error on Real PushT<span class="hint">Table 1</span></summary>
+          <div class="tw">
+            <table>
+              <caption>Trajectories generated from predicted frames. Ground truth is the floor: the same policy run twice on the real frame.</caption>
+              <thead><tr><th>Method</th><th>ADE&nbsp;↓</th><th>FDE&nbsp;↓</th></tr></thead>
+              <tbody>
+                <tr class="ref"><td>Ground truth frame</td><td>1.552</td><td>1.319</td></tr>
+                <tr><td>iVideoGPT</td><td>45.134</td><td>65.228</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>12.864</b></td><td><b>17.550</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <figure class="figw">
+        <!-- <img src="assets/pusht_qualitative.png" alt="Qualitative Real PushT comparison"> -->
+        <div class="ph" data-ratio="grid">
+          <span class="file">assets/pusht_qualitative.png</span>
+          <span class="what">Qualitative PushT — input frame, iVideoGPT, D3WM, ground truth at t = 16.</span>
+        </div>
+      </figure>
+
+      <figure class="figw">
+        <!-- <img src="assets/pusht.gif" alt="Rollout on Real PushT" style="max-width:26rem"> -->
+        <div class="ph" data-ratio="square" style="max-width:26rem">
+          <span class="file">assets/pusht.gif</span>
+          <span class="what">Rollout — predicted frames beside the executed trajectory.</span>
+        </div>
+        <figcaption>Drop in an animated GIF, or swap the block for a <code>&lt;video autoplay loop muted playsinline&gt;</code> element.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap"><div class="col">
+      <p class="eyebrow">Results — BridgeData V2</p>
+      <h2>Predict, rank, and act</h2>
+      <p>Tabletop manipulation from a fixed camera, against IRASim and WorldGym — measured on the three jobs a world model actually has, not just on how well it reconstructs a frame.</p>
+      <ul class="wins">
+        <li><b>Best open-loop prediction</b> at every horizon: <span class="drift">μ<sub>t</sub></span> leads PSNR by +1.4 to +1.6 dB over IRASim, with the full model second.</li>
+        <li><b>Best action verifier.</b> Ranking candidate action chunks, D3WM closes 38–40% of the random-to-oracle gap against IRASim's 23–26%, at half the compute per candidate.</li>
+        <li><b>4.9 ms per candidate</b> for the deterministic pass — 204 candidates a second against IRASim's 0.2, the only variant cheap enough to screen at control rate.</li>
+        <li>Driving a frozen Octo policy, the stochastic component is worth 1.063 ADE against 1.445 for the deterministic prediction alone. IRASim still leads here, since it diffuses a whole trajectory where we predict one frame.</li>
+      </ul>
+    </div>
+
+      <div class="drops">
+        <details class="drop">
+          <summary>Open-loop prediction<span class="hint">Table 2</span></summary>
+          <div class="tw">
+            <table>
+              <caption>Columns are the prediction gap <em>g</em> in frames. Both reference metrics reward a hedged prediction, which is why the two tables below exist.</caption>
+              <thead>
+                <tr><th rowspan="2">Method</th><th colspan="4">PSNR ↑</th><th colspan="4">LPIPS ↓</th></tr>
+                <tr><th>1</th><th>2</th><th>3</th><th>4</th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+              </thead>
+              <tbody>
+                <tr class="ref"><td>copy-frame (control)</td><td>24.48</td><td>21.48</td><td>20.04</td><td>19.19</td><td><b>.051</b></td><td><b>.084</b></td><td><b>.105</b></td><td>.121</td></tr>
+                <tr><td>IRASim</td><td>23.34</td><td>22.37</td><td>21.64</td><td>21.12</td><td>.101</td><td>.116</td><td>.127</td><td>.136</td></tr>
+                <tr><td>WorldGym</td><td>23.80</td><td>21.10</td><td>19.70</td><td>18.86</td><td>.059</td><td>.093</td><td>.118</td><td>.137</td></tr>
+                <tr class="ours"><td>D3WM <span class="mu">μ<sub>t</sub></span></td><td><b>24.73</b></td><td><b>23.54</b></td><td><b>23.09</b></td><td><b>22.76</b></td><td>.086</td><td>.099</td><td>.107</td><td><b>.112</b></td></tr>
+                <tr class="ours"><td>D3WM</td><td>24.29</td><td>22.80</td><td>22.32</td><td>21.91</td><td>.104</td><td>.118</td><td>.124</td><td>.130</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="drop">
+          <summary>Candidate verification<span class="hint">Table 3</span></summary>
+          <div class="tw">
+            <table>
+              <caption>Candidate action chunks are ranked by predicted similarity to the true <em>t</em>+4 frame; the selected chunk is scored against the demonstrated action. Random and oracle bracket every row.</caption>
+              <thead><tr><th>Verifier</th><th>ms/cand</th><th><em>K</em>@1s</th><th>MSE @ 4</th><th>16</th><th>32</th></tr></thead>
+              <tbody>
+                <tr class="ref"><td>random</td><td>—</td><td>—</td><td>.040</td><td>.038</td><td>.038</td></tr>
+                <tr class="ref"><td>oracle</td><td>—</td><td>—</td><td>.006</td><td>.003</td><td>.003</td></tr>
+                <tr><td>IRASim</td><td>5478</td><td>0.2</td><td>.031</td><td>.029</td><td>.030</td></tr>
+                <tr><td>WorldGym</td><td>1094</td><td>0.9</td><td>.044</td><td>.056</td><td>.063</td></tr>
+                <tr class="ours"><td>D3WM <span class="mu">μ<sub>t</sub></span></td><td><b>4.9</b></td><td><b>204</b></td><td>.054</td><td>.043</td><td>.038</td></tr>
+                <tr class="ours"><td>D3WM</td><td>2643</td><td>0.4</td><td><b>.027</b></td><td><b>.024</b></td><td><b>.022</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="drop">
+          <summary>Policy consistency<span class="hint">Table 4</span></summary>
+          <div class="tw">
+            <table>
+              <caption>A frozen Octo policy acts on the predicted future and on the real one. A perfect simulator scores 0.</caption>
+              <thead><tr><th>World model</th><th>ADE&nbsp;↓</th><th>FDE&nbsp;↓</th></tr></thead>
+              <tbody>
+                <tr class="ref"><td>copy-frame (control)</td><td>1.577</td><td>1.994</td></tr>
+                <tr><td>WorldGym</td><td>1.448</td><td>1.783</td></tr>
+                <tr class="ours"><td>D3WM <span class="mu">μ<sub>t</sub></span></td><td>1.445</td><td>1.649</td></tr>
+                <tr class="ours"><td>D3WM</td><td>1.063</td><td>1.193</td></tr>
+                <tr><td>IRASim</td><td><b>0.846</b></td><td><b>1.035</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <figure class="figw">
+        <!-- <img src="assets/bridge_qualitative.png" alt="Qualitative BridgeData V2 comparison"> -->
+        <div class="ph" data-ratio="grid">
+          <span class="file">assets/bridge_qualitative.png</span>
+          <span class="what">Qualitative BridgeData V2 — the hedged <i>μ</i><sub>t</sub> beside the sharp full-model sample, against IRASim and WorldGym.</span>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap"><div class="col">
+      <p class="eyebrow">Results — Novel view synthesis</p>
+      <h2>Extrapolating 12 frames from two views</h2>
+      <p>Camera movement as the action: two input views on the DL3DV benchmark, extrapolating 3 to 12 frames, then the same model transferred to RealEstate10K with no retraining.</p>
+      <ul class="wins">
+        <li><b>Beats DepthSplat on PSNR at every horizon</b>, and on all three metrics by 9 frames out — the gap widens with distance as splatting's black holes expand and ours are filled.</li>
+        <li><b>+3.1 dB PSNR and 39% lower LPIPS</b> than NWM on RealEstate10K, a dataset we never trained on.</li>
+      </ul>
+    </div>
+
+      <div class="drops">
+        <details class="drop">
+          <summary>DL3DV, in-distribution<span class="hint">Table 5</span></summary>
+          <div class="tw">
+            <table>
+              <caption>Two-view extrapolation against DepthSplat, from the same two reference frames.</caption>
+              <thead><tr><th>Extrap.</th><th>Method</th><th>PSNR&nbsp;↑</th><th>SSIM&nbsp;↑</th><th>LPIPS&nbsp;↓</th></tr></thead>
+              <tbody>
+                <tr><th rowspan="2">3 fr.</th><td>DepthSplat</td><td>20.87</td><td><b>0.761</b></td><td><b>0.200</b></td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>21.48</b></td><td>0.669</td><td>0.222</td></tr>
+                <tr><th rowspan="2">6 fr.</th><td>DepthSplat</td><td>17.39</td><td><b>0.643</b></td><td>0.298</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>20.12</b></td><td>0.609</td><td><b>0.283</b></td></tr>
+                <tr><th rowspan="2">9 fr.</th><td>DepthSplat</td><td>15.40</td><td>0.557</td><td>0.371</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>19.19</b></td><td><b>0.563</b></td><td><b>0.338</b></td></tr>
+                <tr><th rowspan="2">12 fr.</th><td>DepthSplat</td><td>14.14</td><td>0.496</td><td>0.421</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>18.35</b></td><td><b>0.525</b></td><td><b>0.382</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="drop">
+          <summary>RealEstate10K, zero-shot<span class="hint">Table 6</span></summary>
+          <div class="tw">
+            <table>
+              <caption>Out-of-distribution transfer against NWM. Trained on DL3DV only.</caption>
+              <thead><tr><th>Extrap.</th><th>Method</th><th>PSNR&nbsp;↑</th><th>SSIM&nbsp;↑</th><th>LPIPS&nbsp;↓</th></tr></thead>
+              <tbody>
+                <tr><th rowspan="2">3 fr.</th><td>NWM</td><td>18.45</td><td>0.632</td><td>0.233</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>21.55</b></td><td><b>0.790</b></td><td><b>0.142</b></td></tr>
+                <tr><th rowspan="2">6 fr.</th><td>NWM</td><td>15.86</td><td>0.554</td><td>0.315</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>19.21</b></td><td><b>0.619</b></td><td><b>0.189</b></td></tr>
+                <tr><th rowspan="2">9 fr.</th><td>NWM</td><td>14.45</td><td>0.509</td><td>0.375</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>17.63</b></td><td><b>0.556</b></td><td><b>0.237</b></td></tr>
+                <tr><th rowspan="2">12 fr.</th><td>NWM</td><td>13.57</td><td>0.480</td><td>0.422</td></tr>
+                <tr class="ours"><td>D3WM</td><td><b>16.78</b></td><td><b>0.522</b></td><td><b>0.266</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <figure class="figw">
+        <!-- <img src="assets/nvs_qualitative.png" alt="Qualitative NVS comparison"> -->
+        <div class="ph" data-ratio="grid">
+          <span class="file">assets/nvs_qualitative.png</span>
+          <span class="what">Qualitative NVS — reference, deterministic <i>μ</i><sub>t</sub>, variance map, D3WM, DepthSplat, ground truth.</span>
+        </div>
+        <figcaption>The variance map column is the part to look at: it locates the disocclusions before anything is generated.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap"><div class="col">
+      <p class="eyebrow">Citation</p>
+      <h2>BibTeX</h2>
+      <div class="bib">
+<pre>@article{
+}</pre>
+      </div>
+    </div></div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap"><div class="col">
+    <p>Anton Arapin, Aditya Singh, Yixin Wang, Jun Gao, Bernadette Bucher &middot; University of Michigan and NVIDIA</p>
+  </div></div>
+</footer>
+
+</body>
+</html>
